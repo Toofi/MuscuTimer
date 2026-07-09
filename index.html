@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#14100d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Séries & Repos">
+<title>Séries & Repos — Minuteur muscu</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg: #14100d;
+    --panel: #1d1712;
+    --panel-2: #241c15;
+    --line: #362b21;
+    --text: #f1ece4;
+    --muted: #8a8078;
+    --led: #ff7a1a;
+    --led-dim: #6b3813;
+    --work: #ff5a3d;
+    --rest: #4fb8e0;
+    --ready: #d9b64f;
+    --done: #6bd18a;
+    --danger: #d9534f;
+    --radius: 18px;
+    font-size: 16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #241c15 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height:100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+    overscroll-behavior:none;
+    user-select:none;
+  }
+  .mono{ font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace; }
+
+  /* ---------- layout shells ---------- */
+  #app{ max-width:520px; margin:0 auto; padding:18px 16px 100px; min-height:100vh; position:relative; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  header.top{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:18px; padding-top: max(6px, env(safe-area-inset-top));
+  }
+  .eyebrow{
+    font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+    font-family: ui-monospace, monospace;
+  }
+  h1{ font-size:22px; margin:2px 0 0; letter-spacing:-0.01em; font-weight:700; }
+  h1 .accent{ color:var(--led); }
+
+  /* ---------- module cards (builder) ---------- */
+  #blockList{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; position:relative; }
+  .block-card{
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding:12px 14px 12px 8px;
+    position:relative;
+    overflow:hidden;
+    display:flex; align-items:flex-start; gap:2px;
+  }
+  .block-card::before{
+    content:"";
+    position:absolute; left:0; top:0; bottom:0; width:4px;
+    background: var(--led);
+    opacity:.85;
+  }
+  .block-card.drag-source{ opacity:.35; }
+  .drag-ghost{
+    position:fixed; z-index:999; pointer-events:none; opacity:.97;
+    box-shadow:0 16px 30px rgba(0,0,0,.55); transform:scale(1.02);
+  }
+  .drag-handle{
+    width:26px; height:44px; flex-shrink:0; margin-top:2px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:19px; line-height:1;
+    touch-action:none; cursor:grab;
+  }
+  .block-body{ flex:1; min-width:0; }
+  .block-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .block-name{ font-weight:700; font-size:16px; }
+  .block-spec{
+    margin-top:5px; color:var(--muted); font-size:13px;
+    font-family: ui-monospace, monospace; letter-spacing:.02em;
+  }
+  .block-spec b{ color:var(--text); font-weight:600; }
+  .block-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .icon-btn{
+    width:32px; height:32px; border-radius:9px; border:1px solid var(--line);
+    background:#171310; color:var(--muted); display:flex; align-items:center; justify-content:center;
+    font-size:14px; cursor:pointer;
+  }
+  .icon-btn:active{ background:#0f0c0a; }
+  .icon-btn.danger{ color:var(--danger); }
+
+  .empty-state{
+    border:1px dashed var(--line); border-radius:var(--radius);
+    padding:32px 18px; text-align:center; color:var(--muted); font-size:14px; line-height:1.5;
+  }
+
+  /* ---------- buttons ---------- */
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:14px; padding:14px 18px; font-size:15px; font-weight:700;
+    cursor:pointer; width:100%;
+  }
+  .btn-primary{ background: var(--led); color:#1a1008; }
+  .btn-primary:disabled{ background:#4a3a26; color:#8a7a63; }
+  .btn-ghost{ background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .btn-outline{ background:transparent; color:var(--text); border:1px solid var(--line); }
+  .btn-row{ display:flex; gap:10px; margin-top:8px; }
+
+  .fab-add{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    border:1px dashed var(--led); color:var(--led); background:transparent;
+    border-radius:var(--radius); padding:14px; font-weight:700; width:100%; cursor:pointer; margin-bottom:16px;
+  }
+
+  footer.builder-footer{
+    position:fixed; left:0; right:0; bottom:0;
+    background: linear-gradient(180deg, rgba(20,16,13,0) 0%, var(--bg) 30%);
+    padding: 22px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .footer-inner{ max-width:520px; margin:0 auto; }
+  .total-line{
+    display:flex; justify-content:space-between; font-size:12px; color:var(--muted);
+    font-family:ui-monospace,monospace; margin-bottom:8px; padding:0 2px;
+  }
+
+  /* ---------- modal form ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:40;
+  }
+  .sheet-backdrop.active{ display:flex; }
+  .sheet{
+    background: var(--panel); width:100%; max-width:520px; margin:0 auto;
+    border-radius:22px 22px 0 0; padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line);
+    max-height:88vh; overflow-y:auto;
+  }
+  .sheet h2{ margin:0 0 16px; font-size:18px; }
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:7px; letter-spacing:.04em; text-transform:uppercase; }
+  .field input[type=text]{
+    width:100%; background:#171310; border:1px solid var(--line); color:var(--text);
+    border-radius:12px; padding:12px 14px; font-size:16px;
+  }
+  .stepper{ display:flex; align-items:center; gap:10px; }
+  .stepper button{
+    width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:#171310;
+    color:var(--led); font-size:18px; font-weight:700;
+  }
+  .stepper .val{
+    flex:1; text-align:center; font-size:20px; font-weight:700; font-family:ui-monospace,monospace;
+  }
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .chip{
+    padding:7px 12px; border-radius:999px; border:1px solid var(--line); color:var(--muted);
+    font-size:12.5px; font-family:ui-monospace,monospace; background:transparent;
+  }
+  .chip.active{ border-color:var(--led); color:var(--led); }
+  .check-row{ display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text); margin-bottom:18px; }
+  .check-row input{ width:18px; height:18px; accent-color:var(--led); }
+
+  .seg-toggle{ display:flex; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .seg-btn{
+    flex:1; padding:11px 8px; background:#171310; color:var(--muted); border:none;
+    font-size:13.5px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .seg-btn + .seg-btn{ border-left:1px solid var(--line); }
+  .seg-btn.active{ background:var(--led); color:#1a1008; }
+
+  /* ---------- player ---------- */
+  #view-player{ display:none; }
+  #view-player.active{ display:flex; }
+  .player-wrap{
+    display:flex; flex-direction:column; min-height:calc(100vh - 20px); width:100%;
+  }
+  .player-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .player-step{ font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; }
+  .close-btn{
+    width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:#171310;
+    color:var(--muted); font-size:16px;
+  }
+  .phase-label{
+    text-align:center; margin-top:18px; font-size:13px; letter-spacing:.22em; font-weight:800;
+    font-family:ui-monospace,monospace;
+  }
+  .phase-label.work{ color:var(--work); }
+  .phase-label.rest{ color:var(--rest); }
+  .phase-label.ready{ color:var(--ready); }
+  .phase-label.done{ color:var(--done); }
+
+  .exercise-name{ text-align:center; font-size:20px; font-weight:700; margin-top:4px; min-height:26px; }
+  .set-count{ text-align:center; color:var(--muted); font-size:13px; margin-top:2px; font-family:ui-monospace,monospace; }
+  .elapsed-line{ text-align:center; color:var(--muted); font-size:13px; margin-top:6px; font-family:ui-monospace,monospace; }
+
+  .led-wrap{ display:flex; justify-content:center; align-items:center; flex:1; }
+  .led-time{
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 108px; font-weight:700; letter-spacing:2px;
+    text-shadow: 0 0 24px currentColor;
+    transition: color .25s ease;
+    font-variant-numeric: tabular-nums;
+  }
+  .led-time.work{ color:var(--work); }
+  .led-time.rest{ color:var(--rest); }
+  .led-time.ready{ color:var(--ready); }
+  .led-time.done{ color:var(--done); }
+  .led-reps-label{
+    text-align:center; margin-top:-14px; color:var(--muted); font-size:13px;
+    letter-spacing:.1em; text-transform:uppercase; font-family:ui-monospace,monospace;
+  }
+
+  .progress-outer{
+    height:6px; border-radius:6px; background:var(--panel-2); overflow:hidden; margin: 4px 4px 0;
+  }
+  .progress-inner{ height:100%; background:var(--led); width:0%; transition:width .2s linear; }
+
+  .overall-dots{ display:flex; justify-content:center; gap:5px; margin:14px 0 6px; flex-wrap:wrap; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--line); }
+  .dot.active{ background:var(--led); }
+  .dot.past{ background:var(--muted); }
+
+  .controls{ display:flex; align-items:center; justify-content:center; gap:14px; margin: 10px 0 6px; }
+  .ctrl-btn{
+    border-radius:16px; border:1px solid var(--line); background:#171310; color:var(--text);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .ctrl-btn.small{ width:52px; height:52px; font-size:14px; color:var(--muted); }
+  .ctrl-btn.main{ width:76px; height:76px; font-size:26px; background:var(--led); color:#1a1008; border:none; }
+  .btn-done-reps{
+    width:100%; padding:20px; border-radius:18px; border:none;
+    background:var(--work); color:#1a0d08; font-size:16px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
+  }
+
+  .note{
+    font-size:11.5px; color:var(--muted); text-align:center; line-height:1.5; margin:14px 6px 4px;
+  }
+  .mute-toggle{
+    position:absolute; top:0; right:0; width:36px; height:36px; border-radius:10px; border:1px solid var(--line);
+    background:#171310; color:var(--muted); font-size:14px;
+  }
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+    background:#241c15; border:1px solid var(--line); color:var(--text);
+    padding:10px 16px; border-radius:12px; font-size:13px; z-index:60; opacity:0; pointer-events:none;
+    transition:opacity .25s ease;
+  }
+  .toast.show{ opacity:1; }
+
+  /* ---------- programs ---------- */
+  .program-bar{ display:flex; gap:8px; margin-bottom:14px; }
+  .program-chip{
+    flex:1; display:flex; align-items:center; gap:8px;
+    background:#171310; border:1px solid var(--line); color:var(--text);
+    border-radius:12px; padding:11px 14px; font-size:14px; font-weight:600; cursor:pointer;
+    overflow:hidden;
+  }
+  .program-chip span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .program-save{
+    width:46px; border-radius:12px; border:1px solid var(--led); background:transparent;
+    color:var(--led); font-size:17px; cursor:pointer;
+  }
+  .program-item{
+    display:flex; align-items:center; gap:10px;
+    background:#171310; border:1px solid var(--line); border-radius:14px;
+    padding:12px 12px 12px 14px; margin-bottom:10px;
+  }
+  .program-item.current{ border-color:var(--led); }
+  .program-info{ flex:1; min-width:0; cursor:pointer; }
+  .program-title{ font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .program-sub{
+    color:var(--muted); font-size:12px; margin-top:3px;
+    font-family:ui-monospace,monospace;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ BUILDER VIEW ============ -->
+  <div class="view active" id="view-builder">
+    <header class="top">
+      <div>
+        <div class="eyebrow">Minuteur modulaire</div>
+        <h1>Séries <span class="accent">&amp;</span> Repos</h1>
+      </div>
+      <button class="icon-btn" id="btn-reset-all" title="Tout réinitialiser">⟲</button>
+    </header>
+
+    <div class="program-bar">
+      <button class="program-chip" id="btn-programs">📁 <span id="currentProgramName">Programmes</span></button>
+      <button class="program-save" id="btn-save-program" title="Enregistrer la séance comme programme">💾</button>
+    </div>
+
+    <div id="blockList"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      Aucun exercice pour l'instant.<br>Ajoute un bloc (nom, séries, travail, pause) pour construire ta séance.
+    </div>
+
+    <button class="fab-add" id="btn-add-block">＋ Ajouter un exercice</button>
+
+    <footer class="builder-footer">
+      <div class="footer-inner">
+        <div class="total-line">
+          <span id="totalBlocks">0 bloc</span>
+          <span id="totalTime">≈ 0:00</span>
+        </div>
+        <button class="btn btn-primary" id="btn-start" disabled>Démarrer la séance ▶</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ============ PLAYER VIEW ============ -->
+  <div class="view" id="view-player">
+    <div class="player-wrap">
+      <div class="player-top">
+        <div class="player-step" id="playerStep">ÉTAPE 0/0</div>
+        <div style="position:relative;">
+          <button class="close-btn" id="btn-stop">✕</button>
+        </div>
+      </div>
+
+      <div class="phase-label ready" id="phaseLabel">PRÊT</div>
+      <div class="exercise-name" id="exerciseName">—</div>
+      <div class="set-count" id="setCount">&nbsp;</div>
+
+      <div class="led-wrap">
+        <div class="led-time ready mono" id="ledTime">00:05</div>
+      </div>
+      <div class="led-reps-label" id="ledRepsLabel" style="display:none;">répétitions</div>
+      <div class="elapsed-line" id="elapsedLine" style="display:none;">⏱ 0:00</div>
+
+      <div class="progress-outer" id="progressOuter"><div class="progress-inner" id="progressInner"></div></div>
+      <div class="overall-dots" id="overallDots"></div>
+
+      <div class="controls" id="controls-timed">
+        <button class="ctrl-btn small" id="btn-back10">−10s</button>
+        <button class="ctrl-btn main" id="btn-pause">⏸</button>
+        <button class="ctrl-btn small" id="btn-skip">Suivant ›</button>
+      </div>
+      <div style="margin-top:10px;" id="controls-manual">
+        <button class="btn-done-reps" id="btn-done-reps">✓ Fait — Passer à la pause</button>
+      </div>
+      <div class="controls" style="margin-top:10px;">
+        <button class="ctrl-btn small" id="btn-mute" style="width:auto;padding:0 16px;">🔊 Bips</button>
+      </div>
+
+      <div class="note">Garde cet écran allumé et l'onglet ouvert pendant ta séance — passe par les commandes du verrouillage / de la notification pour Spotify ou YouTube plutôt que de changer d'appli, sinon le minuteur peut se mettre en pause en arrière-plan.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ PROGRAMS SHEET ============ -->
+<div class="sheet-backdrop" id="programsBackdrop">
+  <div class="sheet">
+    <h2>Mes programmes</h2>
+    <div id="programList"></div>
+    <div class="empty-state" id="programsEmpty" style="display:none;margin-bottom:14px;">
+      Aucun programme enregistré.<br>Construis ta séance puis appuie sur 💾 pour la sauvegarder.
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-close-programs">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD/EDIT SHEET ============ -->
+<div class="sheet-backdrop" id="sheetBackdrop">
+  <div class="sheet">
+    <h2 id="sheetTitle">Nouvel exercice</h2>
+
+    <div class="field">
+      <label>Nom</label>
+      <input type="text" id="f-name" placeholder="ex. Abdos, Planche, Pompes…" maxlength="30">
+    </div>
+
+    <div class="field">
+      <label>Séries</label>
+      <div class="stepper">
+        <button data-step="sets" data-dir="-1">−</button>
+        <div class="val" id="v-sets">3</div>
+        <button data-step="sets" data-dir="1">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Mode de la série</label>
+      <div class="seg-toggle">
+        <button type="button" class="seg-btn" data-mode="time">⏱ Temps</button>
+        <button type="button" class="seg-btn" data-mode="reps">🔢 Répétitions</button>
+      </div>
+    </div>
+
+    <div class="field" id="field-work">
+      <label>Temps de travail</label>
+      <div class="stepper">
+        <button data-step="work" data-dir="-5">−</button>
+        <div class="val" id="v-work">30 s</div>
+        <button data-step="work" data-dir="5">+</button>
+      </div>
+      <div class="chip-row" data-chipfor="work">
+        <button class="chip" data-val="15">15s</button>
+        <button class="chip" data-val="20">20s</button>
+        <button class="chip" data-val="30">30s</button>
+        <button class="chip" data-val="45">45s</button>
+        <button class="chip" data-val="60">60s</button>
+      </div>
+    </div>
+
+    <div class="field" id="field-reps">
+      <label>Nombre de répétitions</label>
+      <div class="stepper">
+        <button data-step="reps" data-dir="-1">−</button>
+        <div class="val" id="v-reps">12</div>
+        <button data-step="reps" data-dir="1">+</button>
+      </div>
+      <div class="chip-row" data-chipfor="reps">
+        <button class="chip" data-val="8">8</button>
+        <button class="chip" data-val="10">10</button>
+        <button class="chip" data-val="12">12</button>
+        <button class="chip" data-val="15">15</button>
+        <button class="chip" data-val="20">20</button>
+        <button class="chip" data-val="25">25</button>
+      </div>
+    </div>
+
+
+    <div class="field">
+      <label>Pause entre les séries</label>
+      <div class="stepper">
+        <button data-step="rest" data-dir="-5">−</button>
+        <div class="val" id="v-rest">15 s</div>
+        <button data-step="rest" data-dir="5">+</button>
+      </div>
+      <div class="chip-row" data-chipfor="rest">
+        <button class="chip" data-val="10">10s</button>
+        <button class="chip" data-val="15">15s</button>
+        <button class="chip" data-val="20">20s</button>
+        <button class="chip" data-val="30">30s</button>
+        <button class="chip" data-val="45">45s</button>
+        <button class="chip" data-val="90">90s</button>
+      </div>
+    </div>
+
+    <div class="check-row">
+      <input type="checkbox" id="f-skiplast" checked>
+      <label for="f-skiplast" style="margin:0;text-transform:none;font-size:14px;color:var(--text);">Pause aussi après la dernière série (transition avant le bloc suivant)</label>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btn-cancel-sheet">Annuler</button>
+      <button class="btn btn-primary" id="btn-save-block">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- storage ---------------- */
+  const STORE_KEY = "sr_blocks_v1";
+  const PROGRAMS_KEY = "sr_programs_v1";
+  const CURRENT_PROG_KEY = "sr_current_program_v1";
+  const uid = () => Math.random().toString(36).slice(2,10);
+
+  function loadBlocks(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      parsed.forEach(b=>{
+        if(!b.mode) b.mode = "time";
+        if(typeof b.reps !== "number") b.reps = 12;
+      });
+      return parsed;
+    }catch(e){ return []; }
+  }
+  function saveBlocks(){
+    localStorage.setItem(STORE_KEY, JSON.stringify(blocks));
+  }
+
+  let blocks = loadBlocks();
+  let editingId = null;
+  let formState = { sets:3, mode:"time", work:30, reps:12, rest:15, skipLastRest:true };
+
+  /* ---------------- programs library ---------------- */
+  function loadPrograms(){
+    try{
+      const raw = localStorage.getItem(PROGRAMS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+  }
+  function savePrograms(){ localStorage.setItem(PROGRAMS_KEY, JSON.stringify(programs)); }
+
+  let programs = loadPrograms();
+  let currentProgramId = localStorage.getItem(CURRENT_PROG_KEY) || null;
+
+  const programsBackdrop = document.getElementById("programsBackdrop");
+  const programListEl = document.getElementById("programList");
+  const programsEmpty = document.getElementById("programsEmpty");
+  const currentProgramName = document.getElementById("currentProgramName");
+
+  function programSummary(p){
+    const total = p.blocks.reduce((t,b)=>t+estimateBlockSeconds(b), 0);
+    const names = p.blocks.map(b=>b.name).join(" · ");
+    return p.blocks.length + " exo · ≈" + fmt(total) + " — " + names;
+  }
+
+  function syncCurrentProgramLabel(){
+    const p = programs.find(x=>x.id===currentProgramId);
+    currentProgramName.textContent = p ? p.name : "Programmes";
+  }
+
+  function openProgramsSheet(){
+    renderPrograms();
+    programsBackdrop.classList.add("active");
+  }
+  function closeProgramsSheet(){ programsBackdrop.classList.remove("active"); }
+
+  function renderPrograms(){
+    programListEl.innerHTML = "";
+    programsEmpty.style.display = programs.length ? "none" : "block";
+    programs.forEach(p=>{
+      const item = document.createElement("div");
+      item.className = "program-item" + (p.id===currentProgramId ? " current" : "");
+      item.innerHTML = `
+        <div class="program-info">
+          <div class="program-title">${escapeHtml(p.name)}</div>
+          <div class="program-sub">${escapeHtml(programSummary(p))}</div>
+        </div>
+        <button class="icon-btn" data-pact="rename" title="Renommer">✎</button>
+        <button class="icon-btn danger" data-pact="del" title="Supprimer">✕</button>
+      `;
+      item.querySelector(".program-info").addEventListener("click", ()=>{
+        blocks = JSON.parse(JSON.stringify(p.blocks)).map(b=>Object.assign({}, b, { id: uid() }));
+        currentProgramId = p.id;
+        localStorage.setItem(CURRENT_PROG_KEY, currentProgramId);
+        saveBlocks();
+        renderBuilder();
+        syncCurrentProgramLabel();
+        closeProgramsSheet();
+        toast("Programme « " + p.name + " » chargé");
+      });
+      item.querySelector('[data-pact="rename"]').addEventListener("click", ()=>{
+        const newName = prompt("Nouveau nom du programme :", p.name);
+        if(newName && newName.trim()){
+          p.name = newName.trim().slice(0,40);
+          savePrograms(); renderPrograms(); syncCurrentProgramLabel();
+        }
+      });
+      item.querySelector('[data-pact="del"]').addEventListener("click", ()=>{
+        if(confirm("Supprimer le programme « " + p.name + " » ?")){
+          programs = programs.filter(x=>x.id!==p.id);
+          if(currentProgramId===p.id){
+            currentProgramId = null;
+            localStorage.removeItem(CURRENT_PROG_KEY);
+            syncCurrentProgramLabel();
+          }
+          savePrograms(); renderPrograms();
+        }
+      });
+      programListEl.appendChild(item);
+    });
+  }
+
+  document.getElementById("btn-programs").addEventListener("click", openProgramsSheet);
+  document.getElementById("btn-close-programs").addEventListener("click", closeProgramsSheet);
+  programsBackdrop.addEventListener("click", (e)=>{ if(e.target===programsBackdrop) closeProgramsSheet(); });
+
+  document.getElementById("btn-save-program").addEventListener("click", ()=>{
+    if(blocks.length===0){ toast("Ajoute d'abord des exercices"); return; }
+    const current = programs.find(x=>x.id===currentProgramId);
+    if(current && confirm("Mettre à jour « " + current.name + " » avec la séance actuelle ?\n(Annuler = enregistrer comme nouveau programme)")){
+      current.blocks = JSON.parse(JSON.stringify(blocks));
+      savePrograms();
+      toast("Programme mis à jour");
+      return;
+    }
+    const name = prompt("Nom du programme :", "");
+    if(!name || !name.trim()) return;
+    const prog = { id: uid(), name: name.trim().slice(0,40), blocks: JSON.parse(JSON.stringify(blocks)) };
+    programs.push(prog);
+    currentProgramId = prog.id;
+    localStorage.setItem(CURRENT_PROG_KEY, currentProgramId);
+    savePrograms();
+    syncCurrentProgramLabel();
+    toast("Programme « " + prog.name + " » enregistré");
+  });
+
+  /* ---------------- helpers ---------------- */
+  function fmt(sec){
+    sec = Math.max(0, Math.round(sec));
+    const m = Math.floor(sec/60);
+    const s = sec % 60;
+    return (m<10?"0"+m:m) + ":" + (s<10?"0"+s:s);
+  }
+  function toast(msg){
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toast._h);
+    toast._h = setTimeout(()=>t.classList.remove("show"), 1800);
+  }
+
+  /* ---------------- builder rendering ---------------- */
+  const blockList = document.getElementById("blockList");
+  const emptyState = document.getElementById("emptyState");
+  const btnStart = document.getElementById("btn-start");
+  const totalBlocksEl = document.getElementById("totalBlocks");
+  const totalTimeEl = document.getElementById("totalTime");
+
+  function estimateBlockSeconds(b){
+    let t = 0;
+    const workSecs = b.mode === "reps" ? b.reps * 3 : b.work; // rough estimate for reps-based sets
+    for(let i=1;i<=b.sets;i++){
+      t += workSecs;
+      const isLast = i===b.sets;
+      if(!isLast || b.skipLastRest) t += b.rest;
+    }
+    return t;
+  }
+
+  function renderBuilder(){
+    blockList.innerHTML = "";
+    emptyState.style.display = blocks.length ? "none" : "block";
+    btnStart.disabled = blocks.length === 0;
+
+    let total = 0;
+    blocks.forEach((b, idx)=>{
+      total += estimateBlockSeconds(b);
+      const card = document.createElement("div");
+      card.className = "block-card";
+      card.dataset.id = b.id;
+      const specText = b.mode === "reps"
+        ? `<b>${b.sets}</b>× série · <b>${b.reps}</b> répétitions · pause <b>${b.rest}s</b>`
+        : `<b>${b.sets}</b>× série · travail <b>${b.work}s</b> · pause <b>${b.rest}s</b>`;
+      card.innerHTML = `
+        <div class="drag-handle" title="Glisser pour réordonner">⠿</div>
+        <div class="block-body">
+          <div class="block-head">
+            <div>
+              <div class="block-name">${escapeHtml(b.name)}</div>
+              <div class="block-spec">${specText}</div>
+            </div>
+            <div class="block-actions">
+              <button class="icon-btn" data-act="up" title="Monter">↑</button>
+              <button class="icon-btn" data-act="down" title="Descendre">↓</button>
+              <button class="icon-btn" data-act="edit" title="Modifier">✎</button>
+              <button class="icon-btn" data-act="dup" title="Dupliquer">⎘</button>
+              <button class="icon-btn danger" data-act="del" title="Supprimer">✕</button>
+            </div>
+          </div>
+        </div>
+      `;
+      card.querySelectorAll("[data-act]").forEach(btn=>{
+        btn.addEventListener("click", ()=>handleBlockAction(b.id, btn.dataset.act, idx));
+      });
+      makeDraggable(card, b.id);
+      blockList.appendChild(card);
+    });
+
+    totalBlocksEl.textContent = blocks.length + (blocks.length>1 ? " blocs" : " bloc");
+    totalTimeEl.textContent = "≈ " + fmt(total);
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  /* ---------------- drag & drop reorder ---------------- */
+  let dragState = null;
+
+  function makeDraggable(card, id){
+    const handle = card.querySelector(".drag-handle");
+    handle.addEventListener("pointerdown", (e)=>{
+      if(e.pointerType === "mouse" && e.button !== 0) return;
+      e.preventDefault();
+      const rect = card.getBoundingClientRect();
+      const ghost = card.cloneNode(true);
+      ghost.classList.add("drag-ghost");
+      ghost.style.width = rect.width + "px";
+      ghost.style.left = rect.left + "px";
+      ghost.style.top = rect.top + "px";
+      document.body.appendChild(ghost);
+      card.classList.add("drag-source");
+
+      dragState = { card, ghost, startY: e.clientY, baseTop: rect.top, pointerId: e.pointerId };
+      try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+      handle.addEventListener("pointermove", onDragMove);
+      handle.addEventListener("pointerup", onDragEnd);
+      handle.addEventListener("pointercancel", onDragEnd);
+    });
+  }
+
+  function onDragMove(e){
+    if(!dragState) return;
+    const dy = e.clientY - dragState.startY;
+    dragState.ghost.style.top = (dragState.baseTop + dy) + "px";
+
+    const cards = Array.from(blockList.querySelectorAll(".block-card"));
+    const currentIndex = cards.indexOf(dragState.card);
+    let targetIndex = cards.length;
+    for(let i=0;i<cards.length;i++){
+      if(cards[i] === dragState.card) continue;
+      const r = cards[i].getBoundingClientRect();
+      const mid = r.top + r.height/2;
+      if(e.clientY < mid){ targetIndex = i; break; }
+    }
+    if(targetIndex === currentIndex) return;
+    if(targetIndex >= cards.length){
+      blockList.appendChild(dragState.card);
+    } else {
+      blockList.insertBefore(dragState.card, cards[targetIndex]);
+    }
+  }
+
+  function onDragEnd(e){
+    if(!dragState) return;
+    const handle = dragState.card.querySelector(".drag-handle");
+    handle.removeEventListener("pointermove", onDragMove);
+    handle.removeEventListener("pointerup", onDragEnd);
+    handle.removeEventListener("pointercancel", onDragEnd);
+    try{ handle.releasePointerCapture(dragState.pointerId); }catch(err){}
+    dragState.ghost.remove();
+    dragState.card.classList.remove("drag-source");
+
+    const orderedIds = Array.from(blockList.querySelectorAll(".block-card")).map(c=>c.dataset.id);
+    blocks = orderedIds.map(oid => blocks.find(b=>b.id===oid));
+    saveBlocks();
+    dragState = null;
+    renderBuilder();
+  }
+
+  function handleBlockAction(id, act, idx){
+    if(act==="up" && idx>0){ [blocks[idx-1],blocks[idx]] = [blocks[idx],blocks[idx-1]]; saveBlocks(); renderBuilder(); }
+    else if(act==="down" && idx<blocks.length-1){ [blocks[idx+1],blocks[idx]] = [blocks[idx],blocks[idx+1]]; saveBlocks(); renderBuilder(); }
+    else if(act==="edit"){ openSheet(id); }
+    else if(act==="dup"){
+      const src = blocks.find(b=>b.id===id);
+      const copy = Object.assign({}, src, { id: uid(), name: src.name + " (copie)" });
+      blocks.splice(idx+1, 0, copy);
+      saveBlocks(); renderBuilder();
+    }
+    else if(act==="del"){
+      blocks = blocks.filter(b=>b.id!==id);
+      saveBlocks(); renderBuilder();
+    }
+  }
+
+  document.getElementById("btn-reset-all").addEventListener("click", ()=>{
+    if(blocks.length===0) return;
+    if(confirm("Supprimer tous les exercices de la séance ?")){
+      blocks = [];
+      currentProgramId = null;
+      localStorage.removeItem(CURRENT_PROG_KEY);
+      syncCurrentProgramLabel();
+      saveBlocks(); renderBuilder();
+    }
+  });
+
+  /* ---------------- add/edit sheet ---------------- */
+  const sheetBackdrop = document.getElementById("sheetBackdrop");
+  const sheetTitle = document.getElementById("sheetTitle");
+  const fName = document.getElementById("f-name");
+  const fSkipLast = document.getElementById("f-skiplast");
+  const vSets = document.getElementById("v-sets");
+  const vWork = document.getElementById("v-work");
+  const vReps = document.getElementById("v-reps");
+  const vRest = document.getElementById("v-rest");
+  const fieldWork = document.getElementById("field-work");
+  const fieldReps = document.getElementById("field-reps");
+
+  function openSheet(id){
+    editingId = id || null;
+    if(id){
+      const b = blocks.find(x=>x.id===id);
+      formState = { sets:b.sets, mode:b.mode, work:b.work, reps:b.reps, rest:b.rest, skipLastRest:b.skipLastRest };
+      fName.value = b.name;
+      sheetTitle.textContent = "Modifier l'exercice";
+    } else {
+      formState = { sets:3, mode:"time", work:30, reps:12, rest:15, skipLastRest:true };
+      fName.value = "";
+      sheetTitle.textContent = "Nouvel exercice";
+    }
+    fSkipLast.checked = formState.skipLastRest;
+    syncFormUI();
+    sheetBackdrop.classList.add("active");
+    setTimeout(()=>fName.focus(), 50);
+  }
+  function closeSheet(){ sheetBackdrop.classList.remove("active"); }
+
+  function syncFormUI(){
+    vSets.textContent = formState.sets;
+    vWork.textContent = formState.work + " s";
+    vReps.textContent = formState.reps;
+    vRest.textContent = formState.rest + " s";
+    document.querySelectorAll(".seg-btn").forEach(btn=>{
+      btn.classList.toggle("active", btn.dataset.mode===formState.mode);
+    });
+    fieldWork.style.display = formState.mode === "time" ? "" : "none";
+    fieldReps.style.display = formState.mode === "reps" ? "" : "none";
+    document.querySelectorAll('.chip-row[data-chipfor="work"] .chip').forEach(c=>{
+      c.classList.toggle("active", Number(c.dataset.val)===formState.work);
+    });
+    document.querySelectorAll('.chip-row[data-chipfor="reps"] .chip').forEach(c=>{
+      c.classList.toggle("active", Number(c.dataset.val)===formState.reps);
+    });
+    document.querySelectorAll('.chip-row[data-chipfor="rest"] .chip').forEach(c=>{
+      c.classList.toggle("active", Number(c.dataset.val)===formState.rest);
+    });
+  }
+
+  document.querySelectorAll(".seg-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{ formState.mode = btn.dataset.mode; syncFormUI(); });
+  });
+
+
+  document.querySelectorAll(".stepper button[data-step]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const key = btn.dataset.step;
+      const dir = Number(btn.dataset.dir);
+      if(key==="sets"){ formState.sets = Math.min(20, Math.max(1, formState.sets+dir)); }
+      if(key==="work"){ formState.work = Math.min(600, Math.max(5, formState.work+dir)); }
+      if(key==="reps"){ formState.reps = Math.min(200, Math.max(1, formState.reps+dir)); }
+      if(key==="rest"){ formState.rest = Math.min(600, Math.max(0, formState.rest+dir)); }
+      syncFormUI();
+    });
+  });
+  document.querySelectorAll('.chip-row[data-chipfor="work"] .chip').forEach(c=>{
+    c.addEventListener("click", ()=>{ formState.work = Number(c.dataset.val); syncFormUI(); });
+  });
+  document.querySelectorAll('.chip-row[data-chipfor="reps"] .chip').forEach(c=>{
+    c.addEventListener("click", ()=>{ formState.reps = Number(c.dataset.val); syncFormUI(); });
+  });
+  document.querySelectorAll('.chip-row[data-chipfor="rest"] .chip').forEach(c=>{
+    c.addEventListener("click", ()=>{ formState.rest = Number(c.dataset.val); syncFormUI(); });
+  });
+
+
+  document.getElementById("btn-add-block").addEventListener("click", ()=>openSheet(null));
+  document.getElementById("btn-cancel-sheet").addEventListener("click", closeSheet);
+  sheetBackdrop.addEventListener("click", (e)=>{ if(e.target===sheetBackdrop) closeSheet(); });
+
+  document.getElementById("btn-save-block").addEventListener("click", ()=>{
+    const name = fName.value.trim() || "Exercice";
+    formState.skipLastRest = fSkipLast.checked;
+    if(editingId){
+      const b = blocks.find(x=>x.id===editingId);
+      Object.assign(b, formState, { name });
+    } else {
+      blocks.push(Object.assign({ id: uid(), name }, formState));
+    }
+    saveBlocks();
+    renderBuilder();
+    closeSheet();
+  });
+
+  /* ================= PLAYER ================= */
+  const viewBuilder = document.getElementById("view-builder");
+  const viewPlayer = document.getElementById("view-player");
+  const ledTime = document.getElementById("ledTime");
+  const phaseLabel = document.getElementById("phaseLabel");
+  const exerciseName = document.getElementById("exerciseName");
+  const setCount = document.getElementById("setCount");
+  const playerStep = document.getElementById("playerStep");
+  const progressInner = document.getElementById("progressInner");
+  const progressOuter = document.getElementById("progressOuter");
+  const overallDots = document.getElementById("overallDots");
+  const btnPause = document.getElementById("btn-pause");
+  const btnMute = document.getElementById("btn-mute");
+  const ledRepsLabel = document.getElementById("ledRepsLabel");
+  const elapsedLine = document.getElementById("elapsedLine");
+  const controlsTimed = document.getElementById("controls-timed");
+  const controlsManual = document.getElementById("controls-manual");
+  const btnDoneReps = document.getElementById("btn-done-reps");
+
+  let queue = [];
+  let qIndex = -1;
+  let phaseEndAt = 0;
+  let phaseStartAt = 0;
+  let phaseDuration = 0;
+  let paused = false;
+  let pausedRemaining = 0;
+  let muted = false;
+  let tickHandle = null;
+  let wakeLock = null;
+  let lastCountdownBeepSecond = null;
+  let sessionActive = false;
+
+  function buildQueue(){
+    const q = [{ type:"ready", name:"Préparation", duration:5, timed:true, blockIdx:-1, setIndex:0, totalSets:0 }];
+    blocks.forEach((b, bi)=>{
+      for(let s=1; s<=b.sets; s++){
+        if(b.mode === "reps"){
+          q.push({ type:"work", name:b.name, duration:0, timed:false, reps:b.reps, blockIdx:bi, setIndex:s, totalSets:b.sets });
+        } else {
+          q.push({ type:"work", name:b.name, duration:b.work, timed:true, blockIdx:bi, setIndex:s, totalSets:b.sets });
+        }
+        const isLast = s===b.sets;
+        if(b.rest>0 && (!isLast || b.skipLastRest)){
+          q.push({ type:"rest", name:b.name, duration:b.rest, timed:true, blockIdx:bi, setIndex:s, totalSets:b.sets });
+        }
+      }
+    });
+    q.push({ type:"done", name:"Terminé", duration:0, timed:true, blockIdx:-1, setIndex:0, totalSets:0 });
+    return q;
+  }
+
+  function renderDots(){
+    overallDots.innerHTML = "";
+    // one dot per work phase (represents each set across the session)
+    const workIdxs = queue.map((p,i)=>p.type==="work"?i:-1).filter(i=>i>=0);
+    workIdxs.forEach(i=>{
+      const d = document.createElement("div");
+      d.className = "dot" + (i<qIndex ? " past" : "") + (i===qIndex ? " active" : "");
+      overallDots.appendChild(d);
+    });
+  }
+
+  document.getElementById("btn-start").addEventListener("click", startSession);
+
+  async function startSession(){
+    queue = buildQueue();
+    qIndex = -1;
+    sessionActive = true;
+    viewBuilder.classList.remove("active");
+    viewPlayer.classList.add("active");
+    await ensureAudio();
+    await requestWakeLock();
+    if("Notification" in window && Notification.permission === "default"){
+      try{ await Notification.requestPermission(); }catch(e){}
+    }
+    advancePhase();
+    startTicker();
+  }
+
+  function totalWorkSteps(){ return queue.filter(p=>p.type==="work").length; }
+
+  function advancePhase(){
+    qIndex++;
+    if(qIndex >= queue.length){ finishSession(); return; }
+    const phase = queue[qIndex];
+    phaseDuration = phase.duration;
+    lastCountdownBeepSecond = null;
+
+    // UI: labels
+    const labelMap = { ready:"PRÊT", work:"TRAVAIL", rest:"PAUSE", done:"TERMINÉ" };
+    phaseLabel.textContent = labelMap[phase.type];
+    phaseLabel.className = "phase-label " + phase.type;
+    ledTime.className = "led-time mono " + phase.type;
+
+    const isManual = phase.type==="work" && phase.timed===false;
+
+    if(phase.type==="ready"){
+      exerciseName.textContent = blocks[0] ? blocks[0].name : "—";
+      setCount.textContent = "Prépare-toi";
+    } else if(phase.type==="work" || phase.type==="rest"){
+      exerciseName.textContent = phase.name;
+      setCount.textContent = "Série " + phase.setIndex + " / " + phase.totalSets + (isManual ? " · " + phase.reps + " répétitions" : "");
+    } else if(phase.type==="done"){
+      exerciseName.textContent = "Séance terminée 💪";
+      setCount.textContent = "";
+    }
+
+    if(isManual){
+      phaseEndAt = null;
+      phaseStartAt = Date.now();
+      ledTime.textContent = String(phase.reps);
+      ledRepsLabel.style.display = "block";
+      elapsedLine.style.display = "block";
+      elapsedLine.textContent = "⏱ 0:00";
+      progressOuter.style.display = "none";
+      controlsTimed.style.display = "none";
+      controlsManual.style.display = "block";
+    } else {
+      phaseEndAt = Date.now() + phaseDuration*1000;
+      ledRepsLabel.style.display = "none";
+      elapsedLine.style.display = "none";
+      progressOuter.style.display = "block";
+      controlsTimed.style.display = "flex";
+      controlsManual.style.display = "none";
+    }
+
+    const stepNum = queue.slice(0,qIndex+1).filter(p=>p.type==="work"||p.type==="rest").length;
+    const stepTotal = queue.filter(p=>p.type==="work"||p.type==="rest").length;
+    playerStep.textContent = "ÉTAPE " + Math.min(stepNum,stepTotal) + "/" + stepTotal;
+
+    renderDots();
+
+    // sound + notification for phase transitions
+    if(phase.type==="work"){
+      beep("work"); vibrate([120]);
+      notify("C'est parti", phase.name + " — série " + phase.setIndex + "/" + phase.totalSets + (isManual ? " (" + phase.reps + " reps)" : ""));
+    }
+    else if(phase.type==="rest"){ beep("rest"); vibrate([60,40,60]); notify("Pause", fmt(phase.duration) + " avant la suite"); }
+    else if(phase.type==="ready"){ beep("ready"); }
+    else if(phase.type==="done"){ beep("done"); vibrate([100,60,100,60,200]); notify("Séance terminée", "Bien joué 💪"); endSessionCleanup(); }
+
+    if(!isManual && phase.duration===0 && phase.type!=="done"){ advancePhase(); }
+  }
+
+  function startTicker(){
+    stopTicker();
+    tickHandle = setInterval(tick, 200);
+    tick();
+  }
+  function stopTicker(){ if(tickHandle){ clearInterval(tickHandle); tickHandle=null; } }
+
+  function tick(){
+    if(!sessionActive || paused) return;
+    const phase = queue[qIndex];
+    if(!phase || phase.type==="done") return;
+
+    if(phase.type==="work" && phase.timed===false){
+      const elapsedSec = Math.floor((Date.now() - phaseStartAt)/1000);
+      elapsedLine.textContent = "⏱ " + fmt(elapsedSec);
+      return;
+    }
+
+    let remainingMs = phaseEndAt - Date.now();
+
+    // catch up if the tab was throttled/backgrounded and we've overshot
+    let guard = 0;
+    while(remainingMs <= 0 && qIndex < queue.length-1 && guard < 200){
+      advancePhase();
+      if(!sessionActive) return;
+      if(queue[qIndex] && queue[qIndex].type==="work" && queue[qIndex].timed===false) return; // landed on a manual phase, stop catching up
+      remainingMs = phaseEndAt - Date.now();
+      guard++;
+    }
+    if(qIndex >= queue.length) return;
+
+    const remainingSec = Math.max(0, Math.ceil(remainingMs/1000));
+    ledTime.textContent = fmt(remainingSec);
+
+    const cur = queue[qIndex];
+    if(cur.duration>0){
+      const pct = Math.max(0, Math.min(100, 100 * (1 - remainingMs/(cur.duration*1000))));
+      progressInner.style.width = pct + "%";
+    }
+
+    if((cur.type==="work"||cur.type==="rest") && remainingSec<=3 && remainingSec>=1 && lastCountdownBeepSecond!==remainingSec){
+      lastCountdownBeepSecond = remainingSec;
+      beep("tick");
+      vibrate([30]);
+    }
+  }
+
+  /* controls */
+  document.getElementById("btn-stop").addEventListener("click", ()=>{
+    if(confirm("Arrêter la séance en cours ?")) stopSession();
+  });
+  document.getElementById("btn-skip").addEventListener("click", ()=>{ advancePhase(); });
+  btnDoneReps.addEventListener("click", ()=>{ advancePhase(); });
+  document.getElementById("btn-back10").addEventListener("click", ()=>{
+    if(paused) return;
+    phaseEndAt += 10000;
+  });
+  btnPause.addEventListener("click", ()=>{
+    if(!sessionActive) return;
+    paused = !paused;
+    if(paused){
+      pausedRemaining = phaseEndAt - Date.now();
+      btnPause.textContent = "▶";
+      releaseWakeLock();
+    } else {
+      phaseEndAt = Date.now() + pausedRemaining;
+      btnPause.textContent = "⏸";
+      requestWakeLock();
+    }
+  });
+  btnMute.addEventListener("click", ()=>{
+    muted = !muted;
+    btnMute.textContent = muted ? "🔇 Bips" : "🔊 Bips";
+  });
+
+  function stopSession(){
+    sessionActive = false;
+    stopTicker();
+    releaseWakeLock();
+    viewPlayer.classList.remove("active");
+    viewBuilder.classList.add("active");
+    btnPause.textContent = "⏸";
+    paused = false;
+    controlsTimed.style.display = "flex";
+    controlsManual.style.display = "none";
+    ledRepsLabel.style.display = "none";
+    elapsedLine.style.display = "none";
+    progressOuter.style.display = "block";
+  }
+  function finishSession(){
+    // reached natural end of queue (shouldn't normally hit, 'done' handles it)
+    endSessionCleanup();
+  }
+  function endSessionCleanup(){
+    stopTicker();
+    releaseWakeLock();
+  }
+
+  /* ---------------- audio ---------------- */
+  let audioCtx = null;
+  async function ensureAudio(){
+    if(!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+    }
+    if(audioCtx.state === "suspended"){ try{ await audioCtx.resume(); }catch(e){} }
+  }
+  function beep(kind){
+    if(muted || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    const specs = {
+      ready: [{f:660, d:.12, t:0}],
+      work:  [{f:880, d:.14, t:0}, {f:1320, d:.16, t:.16}],
+      rest:  [{f:440, d:.18, t:0}],
+      tick:  [{f:990, d:.08, t:0}],
+      done:  [{f:660,d:.12,t:0},{f:880,d:.12,t:.14},{f:1320,d:.22,t:.28}]
+    };
+    (specs[kind]||[]).forEach(seg=>{
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = seg.f;
+      gain.gain.setValueAtTime(0.0001, now+seg.t);
+      gain.gain.exponentialRampToValueAtTime(0.35, now+seg.t+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now+seg.t+seg.d);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now+seg.t);
+      osc.stop(now+seg.t+seg.d+0.02);
+    });
+  }
+  function vibrate(pattern){
+    if(navigator.vibrate){ try{ navigator.vibrate(pattern); }catch(e){} }
+  }
+
+  /* ---------------- notifications ---------------- */
+  function notify(title, body){
+    if(!("Notification" in window) || Notification.permission!=="granted") return;
+    if(navigator.serviceWorker && navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({ type:"notify", title, body, tag:"sr-timer" });
+    } else {
+      try{ new Notification(title, { body, icon:"icon-192.png" }); }catch(e){}
+    }
+  }
+
+  /* ---------------- wake lock ---------------- */
+  async function requestWakeLock(){
+    try{
+      if("wakeLock" in navigator){ wakeLock = await navigator.wakeLock.request("screen"); }
+    }catch(e){ /* ignore, not fatal */ }
+  }
+  function releaseWakeLock(){
+    if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState==="visible" && sessionActive && !paused){ requestWakeLock(); }
+  });
+
+  /* ---------------- service worker ---------------- */
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("sw.js").catch(()=>{});
+    });
+  }
+
+  /* ---------------- init ---------------- */
+  renderBuilder();
+  syncCurrentProgramLabel();
+})();
+</script>
+</body>
+</html>
