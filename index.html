@@ -3,292 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#14100d">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Séries & Repos">
 <title>Séries & Repos — Minuteur muscu</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-  :root{
-    --bg: #14100d;
-    --panel: #1d1712;
-    --panel-2: #241c15;
-    --line: #362b21;
-    --text: #f1ece4;
-    --muted: #8a8078;
-    --led: #ff7a1a;
-    --led-dim: #6b3813;
-    --work: #ff5a3d;
-    --rest: #4fb8e0;
-    --ready: #d9b64f;
-    --done: #6bd18a;
-    --danger: #d9534f;
-    --radius: 18px;
-    font-size: 16px;
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
-  body{
-    margin:0;
-    background:
-      radial-gradient(1200px 600px at 50% -10%, #241c15 0%, var(--bg) 55%);
-    color:var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    min-height:100vh;
-    padding-bottom: env(safe-area-inset-bottom);
-    overscroll-behavior:none;
-    user-select:none;
-  }
-  .mono{ font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace; }
+  * { box-sizing: border-box; }
+  .mono { font-family: monospace; }
 
   /* ---------- layout shells ---------- */
-  #app{ max-width:520px; margin:0 auto; padding:18px 16px 100px; min-height:100vh; position:relative; }
-  .view{ display:none; }
-  .view.active{ display:block; }
+  #app { max-width: 520px; margin: 0 auto; padding: 12px 12px 96px; }
+  .view { display: none; }
+  .view.active { display: block; }
 
-  header.top{
-    display:flex; align-items:baseline; justify-content:space-between;
-    margin-bottom:18px; padding-top: max(6px, env(safe-area-inset-top));
-  }
-  .eyebrow{
-    font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
-    font-family: ui-monospace, monospace;
-  }
-  h1{ font-size:22px; margin:2px 0 0; letter-spacing:-0.01em; font-weight:700; }
-  h1 .accent{ color:var(--led); }
+  header.top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 2px 0 0; }
 
   /* ---------- module cards (builder) ---------- */
-  #blockList{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; position:relative; }
-  .block-card{
-    background: linear-gradient(180deg, var(--panel-2), var(--panel));
-    border:1px solid var(--line);
-    border-radius: var(--radius);
-    padding:12px 14px 12px 8px;
-    position:relative;
-    overflow:hidden;
-    display:flex; align-items:flex-start; gap:2px;
-  }
-  .block-card::before{
-    content:"";
-    position:absolute; left:0; top:0; bottom:0; width:4px;
-    background: var(--led);
-    opacity:.85;
-  }
-  .block-card.drag-source{ opacity:.35; }
-  .drag-ghost{
-    position:fixed; z-index:999; pointer-events:none; opacity:.97;
-    box-shadow:0 16px 30px rgba(0,0,0,.55); transform:scale(1.02);
-  }
-  .drag-handle{
-    width:26px; height:44px; flex-shrink:0; margin-top:2px;
-    display:flex; align-items:center; justify-content:center;
-    color:var(--muted); font-size:19px; line-height:1;
-    touch-action:none; cursor:grab;
-  }
-  .block-body{ flex:1; min-width:0; }
-  .block-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-  .block-name{ font-weight:700; font-size:16px; }
-  .block-spec{
-    margin-top:5px; color:var(--muted); font-size:13px;
-    font-family: ui-monospace, monospace; letter-spacing:.02em;
-  }
-  .block-spec b{ color:var(--text); font-weight:600; }
-  .block-actions{ display:flex; gap:6px; flex-shrink:0; }
-  .icon-btn{
-    width:32px; height:32px; border-radius:9px; border:1px solid var(--line);
-    background:#171310; color:var(--muted); display:flex; align-items:center; justify-content:center;
-    font-size:14px; cursor:pointer;
-  }
-  .icon-btn:active{ background:#0f0c0a; }
-  .icon-btn.danger{ color:var(--danger); }
+  #blockList { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .block-card { display: flex; align-items: flex-start; gap: 4px; border: 1px solid; padding: 8px; }
+  .block-card.drag-source { opacity: .4; }
+  .drag-ghost { position: fixed; z-index: 999; pointer-events: none; background: #fff; }
+  .drag-handle { width: 26px; flex-shrink: 0; text-align: center; touch-action: none; cursor: grab; }
+  .block-body { flex: 1; min-width: 0; }
+  .block-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .block-name { font-weight: bold; }
+  .block-spec { margin-top: 4px; }
+  .block-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .icon-btn { min-width: 30px; height: 30px; }
 
-  .empty-state{
-    border:1px dashed var(--line); border-radius:var(--radius);
-    padding:32px 18px; text-align:center; color:var(--muted); font-size:14px; line-height:1.5;
-  }
+  .empty-state { border: 1px dashed; padding: 24px 12px; text-align: center; }
 
-  /* ---------- buttons ---------- */
-  .btn{
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    border:none; border-radius:14px; padding:14px 18px; font-size:15px; font-weight:700;
-    cursor:pointer; width:100%;
-  }
-  .btn-primary{ background: var(--led); color:#1a1008; }
-  .btn-primary:disabled{ background:#4a3a26; color:#8a7a63; }
-  .btn-ghost{ background:transparent; color:var(--muted); border:1px solid var(--line); }
-  .btn-outline{ background:transparent; color:var(--text); border:1px solid var(--line); }
-  .btn-row{ display:flex; gap:10px; margin-top:8px; }
+  /* ---------- buttons (browser default look) ---------- */
+  .btn, .fab-add { width: 100%; padding: 10px; }
+  .btn-primary:disabled { opacity: .5; }
+  .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+  .fab-add { margin-bottom: 12px; }
 
-  .fab-add{
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    border:1px dashed var(--led); color:var(--led); background:transparent;
-    border-radius:var(--radius); padding:14px; font-weight:700; width:100%; cursor:pointer; margin-bottom:16px;
-  }
+  footer.builder-footer { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid; padding: 10px 12px; }
+  .footer-inner { max-width: 520px; margin: 0 auto; }
+  .total-line { display: flex; justify-content: space-between; margin-bottom: 6px; }
 
-  footer.builder-footer{
-    position:fixed; left:0; right:0; bottom:0;
-    background: linear-gradient(180deg, rgba(20,16,13,0) 0%, var(--bg) 30%);
-    padding: 22px 16px calc(16px + env(safe-area-inset-bottom));
-  }
-  .footer-inner{ max-width:520px; margin:0 auto; }
-  .total-line{
-    display:flex; justify-content:space-between; font-size:12px; color:var(--muted);
-    font-family:ui-monospace,monospace; margin-bottom:8px; padding:0 2px;
-  }
-
-  /* ---------- modal form ---------- */
-  .sheet-backdrop{
-    position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:40;
-  }
-  .sheet-backdrop.active{ display:flex; }
-  .sheet{
-    background: var(--panel); width:100%; max-width:520px; margin:0 auto;
-    border-radius:22px 22px 0 0; padding:20px 18px calc(20px + env(safe-area-inset-bottom));
-    border-top:1px solid var(--line);
-    max-height:88vh; overflow-y:auto;
-  }
-  .sheet h2{ margin:0 0 16px; font-size:18px; }
-  .field{ margin-bottom:16px; }
-  .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:7px; letter-spacing:.04em; text-transform:uppercase; }
-  .field input[type=text]{
-    width:100%; background:#171310; border:1px solid var(--line); color:var(--text);
-    border-radius:12px; padding:12px 14px; font-size:16px;
-  }
-  .stepper{ display:flex; align-items:center; gap:10px; }
-  .stepper button{
-    width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:#171310;
-    color:var(--led); font-size:18px; font-weight:700;
-  }
-  .stepper .val{
-    flex:1; text-align:center; font-size:20px; font-weight:700; font-family:ui-monospace,monospace;
-  }
-  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
-  .chip{
-    padding:7px 12px; border-radius:999px; border:1px solid var(--line); color:var(--muted);
-    font-size:12.5px; font-family:ui-monospace,monospace; background:transparent;
-  }
-  .chip.active{ border-color:var(--led); color:var(--led); }
-  .check-row{ display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text); margin-bottom:18px; }
-  .check-row input{ width:18px; height:18px; accent-color:var(--led); }
-
-  .seg-toggle{ display:flex; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-  .seg-btn{
-    flex:1; padding:11px 8px; background:#171310; color:var(--muted); border:none;
-    font-size:13.5px; font-weight:700; font-family:inherit; cursor:pointer;
-  }
-  .seg-btn + .seg-btn{ border-left:1px solid var(--line); }
-  .seg-btn.active{ background:var(--led); color:#1a1008; }
+  /* ---------- modal sheets ---------- */
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; z-index: 40; }
+  .sheet-backdrop.active { display: block; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; max-width: 520px; margin: 0 auto; background: #fff; border-top: 1px solid; padding: 16px; max-height: 88vh; overflow-y: auto; }
+  .sheet h2 { margin: 0 0 12px; font-size: 18px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; margin-bottom: 4px; }
+  .field input[type=text] { width: 100%; padding: 6px; }
+  .stepper { display: flex; align-items: center; gap: 8px; }
+  .stepper button { min-width: 40px; height: 36px; }
+  .stepper .val { flex: 1; text-align: center; font-weight: bold; }
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip.active { font-weight: bold; outline: 2px solid; }
+  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .seg-toggle { display: flex; gap: 6px; }
+  .seg-btn { flex: 1; padding: 8px; }
+  .seg-btn.active { font-weight: bold; outline: 2px solid; }
 
   /* ---------- player ---------- */
-  #view-player{ display:none; }
-  #view-player.active{ display:flex; }
-  .player-wrap{
-    display:flex; flex-direction:column; min-height:calc(100vh - 20px); width:100%;
-  }
-  .player-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
-  .player-step{ font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; }
-  .close-btn{
-    width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:#171310;
-    color:var(--muted); font-size:16px;
-  }
-  .phase-label{
-    text-align:center; margin-top:18px; font-size:13px; letter-spacing:.22em; font-weight:800;
-    font-family:ui-monospace,monospace;
-  }
-  .phase-label.work{ color:var(--work); }
-  .phase-label.rest{ color:var(--rest); }
-  .phase-label.ready{ color:var(--ready); }
-  .phase-label.done{ color:var(--done); }
-
-  .exercise-name{ text-align:center; font-size:20px; font-weight:700; margin-top:4px; min-height:26px; }
-  .set-count{ text-align:center; color:var(--muted); font-size:13px; margin-top:2px; font-family:ui-monospace,monospace; }
-  .elapsed-line{ text-align:center; color:var(--muted); font-size:13px; margin-top:6px; font-family:ui-monospace,monospace; }
-
-  .led-wrap{ display:flex; justify-content:center; align-items:center; flex:1; }
-  .led-time{
-    font-family: ui-monospace, "SF Mono", monospace;
-    font-size: 108px; font-weight:700; letter-spacing:2px;
-    text-shadow: 0 0 24px currentColor;
-    transition: color .25s ease;
-    font-variant-numeric: tabular-nums;
-  }
-  .led-time.work{ color:var(--work); }
-  .led-time.rest{ color:var(--rest); }
-  .led-time.ready{ color:var(--ready); }
-  .led-time.done{ color:var(--done); }
-  .led-reps-label{
-    text-align:center; margin-top:-14px; color:var(--muted); font-size:13px;
-    letter-spacing:.1em; text-transform:uppercase; font-family:ui-monospace,monospace;
-  }
-
-  .progress-outer{
-    height:6px; border-radius:6px; background:var(--panel-2); overflow:hidden; margin: 4px 4px 0;
-  }
-  .progress-inner{ height:100%; background:var(--led); width:0%; transition:width .2s linear; }
-
-  .overall-dots{ display:flex; justify-content:center; gap:5px; margin:14px 0 6px; flex-wrap:wrap; }
-  .dot{ width:7px; height:7px; border-radius:50%; background:var(--line); }
-  .dot.active{ background:var(--led); }
-  .dot.past{ background:var(--muted); }
-
-  .controls{ display:flex; align-items:center; justify-content:center; gap:14px; margin: 10px 0 6px; }
-  .ctrl-btn{
-    border-radius:16px; border:1px solid var(--line); background:#171310; color:var(--text);
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-  }
-  .ctrl-btn.small{ width:52px; height:52px; font-size:14px; color:var(--muted); }
-  .ctrl-btn.main{ width:76px; height:76px; font-size:26px; background:var(--led); color:#1a1008; border:none; }
-  .btn-done-reps{
-    width:100%; padding:20px; border-radius:18px; border:none;
-    background:var(--work); color:#1a0d08; font-size:16px; font-weight:800;
-    display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
-  }
-
-  .note{
-    font-size:11.5px; color:var(--muted); text-align:center; line-height:1.5; margin:14px 6px 4px;
-  }
-  .mute-toggle{
-    position:absolute; top:0; right:0; width:36px; height:36px; border-radius:10px; border:1px solid var(--line);
-    background:#171310; color:var(--muted); font-size:14px;
-  }
-
-  .toast{
-    position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
-    background:#241c15; border:1px solid var(--line); color:var(--text);
-    padding:10px 16px; border-radius:12px; font-size:13px; z-index:60; opacity:0; pointer-events:none;
-    transition:opacity .25s ease;
-  }
-  .toast.show{ opacity:1; }
+  .player-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .phase-label { text-align: center; margin-top: 12px; font-weight: bold; }
+  .exercise-name { text-align: center; font-size: 18px; font-weight: bold; margin-top: 4px; min-height: 22px; }
+  .set-count, .elapsed-line { text-align: center; margin-top: 4px; }
+  .led-wrap { text-align: center; margin: 24px 0; }
+  .led-time { font-size: 72px; font-weight: bold; }
+  .led-reps-label { text-align: center; }
+  .progress-outer { height: 8px; border: 1px solid; margin: 8px 0; }
+  .progress-inner { height: 100%; background: #000; width: 0%; }
+  .overall-dots { display: flex; justify-content: center; gap: 4px; margin: 12px 0; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border: 1px solid; border-radius: 50%; }
+  .dot.active, .dot.past { background: #000; }
+  .controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0; }
+  .ctrl-stack { display: flex; flex-direction: column; gap: 6px; }
+  .ctrl-btn.small { min-width: 52px; height: 44px; }
+  .ctrl-btn.main { width: 76px; height: 76px; font-size: 24px; }
+  .btn-done-reps { width: 100%; padding: 16px; font-weight: bold; }
+  .note { text-align: center; margin: 16px 6px; font-size: 12px; }
 
   /* ---------- programs ---------- */
-  .program-bar{ display:flex; gap:8px; margin-bottom:14px; }
-  .program-chip{
-    flex:1; display:flex; align-items:center; gap:8px;
-    background:#171310; border:1px solid var(--line); color:var(--text);
-    border-radius:12px; padding:11px 14px; font-size:14px; font-weight:600; cursor:pointer;
-    overflow:hidden;
-  }
-  .program-chip span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .program-save{
-    width:46px; border-radius:12px; border:1px solid var(--led); background:transparent;
-    color:var(--led); font-size:17px; cursor:pointer;
-  }
-  .program-item{
-    display:flex; align-items:center; gap:10px;
-    background:#171310; border:1px solid var(--line); border-radius:14px;
-    padding:12px 12px 12px 14px; margin-bottom:10px;
-  }
-  .program-item.current{ border-color:var(--led); }
-  .program-info{ flex:1; min-width:0; cursor:pointer; }
-  .program-title{ font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .program-sub{
-    color:var(--muted); font-size:12px; margin-top:3px;
-    font-family:ui-monospace,monospace;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
+  .program-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .program-chip { flex: 1; text-align: left; padding: 8px; overflow: hidden; }
+  .program-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .program-save { min-width: 46px; }
+  .program-item { display: flex; align-items: center; gap: 8px; border: 1px solid; padding: 8px; margin-bottom: 8px; }
+  .program-item.current { outline: 2px solid; }
+  .program-info { flex: 1; min-width: 0; cursor: pointer; }
+  .program-title { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .program-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #fff; border: 1px solid; padding: 8px 14px; display: none; z-index: 60; }
+  .toast.show { display: block; }
 </style>
 </head>
 <body>
@@ -351,7 +161,10 @@
       <div class="overall-dots" id="overallDots"></div>
 
       <div class="controls" id="controls-timed">
-        <button class="ctrl-btn small" id="btn-back10">−10s</button>
+        <div class="ctrl-stack">
+          <button class="ctrl-btn small" id="btn-back10">−10s</button>
+          <button class="ctrl-btn small" id="btn-fwd10">+10s</button>
+        </div>
         <button class="ctrl-btn main" id="btn-pause">⏸</button>
         <button class="ctrl-btn small" id="btn-skip">Suivant ›</button>
       </div>
@@ -377,8 +190,13 @@
       Aucun programme enregistré.<br>Construis ta séance puis appuie sur 💾 pour la sauvegarder.
     </div>
     <div class="btn-row">
+      <button class="btn btn-outline" id="btn-export-programs">⬇ Exporter (JSON)</button>
+      <button class="btn btn-outline" id="btn-import-programs">⬆ Importer (JSON)</button>
+    </div>
+    <div class="btn-row">
       <button class="btn btn-ghost" id="btn-close-programs">Fermer</button>
     </div>
+    <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;">
   </div>
 </div>
 
@@ -484,14 +302,22 @@
   const CURRENT_PROG_KEY = "sr_current_program_v1";
   const uid = () => Math.random().toString(36).slice(2,10);
 
+  // ancien champ `skipLastRest` (nom trompeur) -> `restAfterLast`, même sémantique
+  function migrateBlock(b){
+    if(!b.mode) b.mode = "time";
+    if(typeof b.reps !== "number") b.reps = 12;
+    if(typeof b.restAfterLast !== "boolean"){
+      b.restAfterLast = b.skipLastRest !== false;
+    }
+    delete b.skipLastRest;
+    return b;
+  }
+
   function loadBlocks(){
     try{
       const raw = localStorage.getItem(STORE_KEY);
       const parsed = raw ? JSON.parse(raw) : [];
-      parsed.forEach(b=>{
-        if(!b.mode) b.mode = "time";
-        if(typeof b.reps !== "number") b.reps = 12;
-      });
+      parsed.forEach(migrateBlock);
       return parsed;
     }catch(e){ return []; }
   }
@@ -501,13 +327,15 @@
 
   let blocks = loadBlocks();
   let editingId = null;
-  let formState = { sets:3, mode:"time", work:30, reps:12, rest:15, skipLastRest:true };
+  let formState = { sets:3, mode:"time", work:30, reps:12, rest:15, restAfterLast:true };
 
   /* ---------------- programs library ---------------- */
   function loadPrograms(){
     try{
       const raw = localStorage.getItem(PROGRAMS_KEY);
-      return raw ? JSON.parse(raw) : [];
+      const parsed = raw ? JSON.parse(raw) : [];
+      parsed.forEach(p=>{ if(Array.isArray(p.blocks)) p.blocks.forEach(migrateBlock); });
+      return parsed;
     }catch(e){ return []; }
   }
   function savePrograms(){ localStorage.setItem(PROGRAMS_KEY, JSON.stringify(programs)); }
@@ -607,6 +435,87 @@
     toast("Programme « " + prog.name + " » enregistré");
   });
 
+  /* ---------------- import / export ---------------- */
+  const importFileInput = document.getElementById("importFileInput");
+
+  function clampInt(v, min, max, dflt){
+    v = Math.round(Number(v));
+    if(!isFinite(v)) return dflt;
+    return Math.min(max, Math.max(min, v));
+  }
+  function sanitizeBlock(b){
+    b = b || {};
+    return {
+      id: uid(),
+      name: (typeof b.name === "string" && b.name.trim() ? b.name.trim() : "Exercice").slice(0,30),
+      sets: clampInt(b.sets, 1, 20, 3),
+      mode: b.mode === "reps" ? "reps" : "time",
+      work: clampInt(b.work, 5, 600, 30),
+      reps: clampInt(b.reps, 1, 200, 12),
+      rest: clampInt(b.rest, 0, 600, 15),
+      restAfterLast: typeof b.restAfterLast === "boolean" ? b.restAfterLast : (b.skipLastRest !== false)
+    };
+  }
+
+  function exportPrograms(){
+    if(programs.length === 0){ toast("Aucun programme à exporter"); return; }
+    const payload = {
+      type: "muscu-timer-programs",
+      version: 1,
+      programs: programs.map(p=>({ name: p.name, blocks: p.blocks }))
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "muscu-programmes.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast(programs.length + (programs.length>1 ? " programmes exportés" : " programme exporté"));
+  }
+
+  function importProgramsFromText(text){
+    let data;
+    try{ data = JSON.parse(text); }
+    catch(e){ toast("Fichier JSON invalide"); return; }
+
+    let incoming;
+    if(Array.isArray(data)) incoming = data;
+    else if(data && Array.isArray(data.programs)) incoming = data.programs;
+    else if(data && Array.isArray(data.blocks)) incoming = [data]; // un seul programme
+    else { toast("Format non reconnu"); return; }
+
+    let added = 0;
+    incoming.forEach(p=>{
+      if(!p || !Array.isArray(p.blocks) || p.blocks.length===0) return;
+      programs.push({
+        id: uid(),
+        name: (typeof p.name === "string" && p.name.trim() ? p.name.trim() : "Programme importé").slice(0,40),
+        blocks: p.blocks.map(sanitizeBlock)
+      });
+      added++;
+    });
+
+    if(added === 0){ toast("Aucun programme valide trouvé"); return; }
+    savePrograms();
+    renderPrograms();
+    toast(added + (added>1 ? " programmes importés" : " programme importé"));
+  }
+
+  document.getElementById("btn-export-programs").addEventListener("click", exportPrograms);
+  document.getElementById("btn-import-programs").addEventListener("click", ()=>importFileInput.click());
+  importFileInput.addEventListener("change", (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>importProgramsFromText(String(reader.result));
+    reader.onerror = ()=>toast("Lecture du fichier impossible");
+    reader.readAsText(file);
+    importFileInput.value = ""; // permet de ré-importer le même fichier
+  });
+
   /* ---------------- helpers ---------------- */
   function fmt(sec){
     sec = Math.max(0, Math.round(sec));
@@ -635,7 +544,7 @@
     for(let i=1;i<=b.sets;i++){
       t += workSecs;
       const isLast = i===b.sets;
-      if(!isLast || b.skipLastRest) t += b.rest;
+      if(!isLast || b.restAfterLast) t += b.rest;
     }
     return t;
   }
@@ -794,15 +703,15 @@
     editingId = id || null;
     if(id){
       const b = blocks.find(x=>x.id===id);
-      formState = { sets:b.sets, mode:b.mode, work:b.work, reps:b.reps, rest:b.rest, skipLastRest:b.skipLastRest };
+      formState = { sets:b.sets, mode:b.mode, work:b.work, reps:b.reps, rest:b.rest, restAfterLast:b.restAfterLast };
       fName.value = b.name;
       sheetTitle.textContent = "Modifier l'exercice";
     } else {
-      formState = { sets:3, mode:"time", work:30, reps:12, rest:15, skipLastRest:true };
+      formState = { sets:3, mode:"time", work:30, reps:12, rest:15, restAfterLast:true };
       fName.value = "";
       sheetTitle.textContent = "Nouvel exercice";
     }
-    fSkipLast.checked = formState.skipLastRest;
+    fSkipLast.checked = formState.restAfterLast;
     syncFormUI();
     sheetBackdrop.classList.add("active");
     setTimeout(()=>fName.focus(), 50);
@@ -863,7 +772,7 @@
 
   document.getElementById("btn-save-block").addEventListener("click", ()=>{
     const name = fName.value.trim() || "Exercice";
-    formState.skipLastRest = fSkipLast.checked;
+    formState.restAfterLast = fSkipLast.checked;
     if(editingId){
       const b = blocks.find(x=>x.id===editingId);
       Object.assign(b, formState, { name });
@@ -917,7 +826,7 @@
           q.push({ type:"work", name:b.name, duration:b.work, timed:true, blockIdx:bi, setIndex:s, totalSets:b.sets });
         }
         const isLast = s===b.sets;
-        if(b.rest>0 && (!isLast || b.skipLastRest)){
+        if(b.rest>0 && (!isLast || b.restAfterLast)){
           q.push({ type:"rest", name:b.name, duration:b.rest, timed:true, blockIdx:bi, setIndex:s, totalSets:b.sets });
         }
       }
@@ -1074,6 +983,12 @@
   btnDoneReps.addEventListener("click", ()=>{ advancePhase(); });
   document.getElementById("btn-back10").addEventListener("click", ()=>{
     if(paused) return;
+    // retire 10 s au temps restant, sans descendre sous le moment présent
+    phaseEndAt = Math.max(Date.now(), phaseEndAt - 10000);
+  });
+  document.getElementById("btn-fwd10").addEventListener("click", ()=>{
+    if(paused) return;
+    // ajoute 10 s au temps restant
     phaseEndAt += 10000;
   });
   btnPause.addEventListener("click", ()=>{
