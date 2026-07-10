@@ -173,6 +173,7 @@
       </div>
       <div class="controls" style="margin-top:10px;">
         <button class="ctrl-btn small" id="btn-mute" style="width:auto;padding:0 16px;">🔊 Bips</button>
+        <button class="ctrl-btn small" id="btn-voice" style="width:auto;padding:0 16px;">🔇 Voix</button>
       </div>
 
       <div class="note">Garde cet écran allumé et l'onglet ouvert pendant ta séance — passe par les commandes du verrouillage / de la notification pour Spotify ou YouTube plutôt que de changer d'appli, sinon le minuteur peut se mettre en pause en arrière-plan.</div>
@@ -797,6 +798,7 @@
   const overallDots = document.getElementById("overallDots");
   const btnPause = document.getElementById("btn-pause");
   const btnMute = document.getElementById("btn-mute");
+  const btnVoice = document.getElementById("btn-voice");
   const ledRepsLabel = document.getElementById("ledRepsLabel");
   const elapsedLine = document.getElementById("elapsedLine");
   const controlsTimed = document.getElementById("controls-timed");
@@ -811,10 +813,16 @@
   let paused = false;
   let pausedRemaining = 0;
   let muted = false;
+  let voiceOn = localStorage.getItem("sr_voice_v1") === "1";
+  const ttsSupported = typeof window.speechSynthesis !== "undefined"
+    && typeof window.SpeechSynthesisUtterance !== "undefined";
   let tickHandle = null;
   let wakeLock = null;
   let lastCountdownBeepSecond = null;
   let sessionActive = false;
+  const ANNOUNCE_LEAD = 4;         // secondes avant la fin d'une étape où la voix annonce la suivante
+  let announcedNextPhase = false;  // la suite a déjà été annoncée pendant cette étape ?
+  let phaseWasPreAnnounced = false;// l'étape en cours a-t-elle été annoncée pendant le décompte de la précédente ?
 
   function buildQueue(){
     const q = [{ type:"ready", name:"Préparation", duration:5, timed:true, blockIdx:-1, setIndex:0, totalSets:0 }];
@@ -871,6 +879,9 @@
     const phase = queue[qIndex];
     phaseDuration = phase.duration;
     lastCountdownBeepSecond = null;
+    const preAnnounced = phaseWasPreAnnounced; // annoncée pendant le décompte de l'étape précédente ?
+    phaseWasPreAnnounced = false;
+    announcedNextPhase = false;
 
     // UI: labels
     const labelMap = { ready:"PRÊT", work:"TRAVAIL", rest:"PAUSE", done:"TERMINÉ" };
@@ -921,9 +932,16 @@
       beep("work"); vibrate([120]);
       notify("C'est parti", phase.name + " — série " + phase.setIndex + "/" + phase.totalSets + (isManual ? " (" + phase.reps + " reps)" : ""));
     }
-    else if(phase.type==="rest"){ beep("rest"); vibrate([60,40,60]); notify("Pause", fmt(phase.duration) + " avant la suite"); }
+    else if(phase.type==="rest"){
+      beep("rest"); vibrate([60,40,60]);
+      notify("Pause", fmt(phase.duration) + " avant la suite");
+    }
     else if(phase.type==="ready"){ beep("ready"); }
     else if(phase.type==="done"){ beep("done"); vibrate([100,60,100,60,200]); notify("Séance terminée", "Bien joué 💪"); endSessionCleanup(); }
+
+    // annonce vocale : si cette étape n'a pas déjà été annoncée pendant le décompte de la
+    // précédente (étape manuelle, saut, ou tout début), on l'annonce à son démarrage
+    if(!preAnnounced) announcePhase(phase, qIndex);
 
     if(!isManual && phase.duration===0 && phase.type!=="done"){ advancePhase(); }
   }
@@ -973,6 +991,16 @@
       beep("tick");
       vibrate([30]);
     }
+
+    // annonce vocale anticipée de l'étape suivante, dans les dernières secondes (comme les bips)
+    if(voiceOn && !announcedNextPhase && remainingSec <= ANNOUNCE_LEAD && remainingSec >= 1){
+      const next = queue[qIndex+1];
+      if(next && next.type !== "done"){
+        announcedNextPhase = true;
+        phaseWasPreAnnounced = true; // pour que advancePhase ne la ré-annonce pas au démarrage
+        announcePhase(next, qIndex+1);
+      }
+    }
   }
 
   /* controls */
@@ -1008,10 +1036,24 @@
     muted = !muted;
     btnMute.textContent = muted ? "🔇 Bips" : "🔊 Bips";
   });
+  function syncVoiceBtn(){
+    btnVoice.disabled = !ttsSupported;
+    btnVoice.textContent = (voiceOn && ttsSupported) ? "🗣 Voix" : "🔇 Voix";
+    btnVoice.title = ttsSupported ? "Annonces vocales" : "Synthèse vocale non disponible sur ce navigateur";
+  }
+  btnVoice.addEventListener("click", ()=>{
+    if(!ttsSupported){ toast("Synthèse vocale non disponible ici"); return; }
+    voiceOn = !voiceOn;
+    localStorage.setItem("sr_voice_v1", voiceOn ? "1" : "0");
+    syncVoiceBtn();
+    if(voiceOn) speak("Voix activée"); else stopSpeaking();
+  });
+  syncVoiceBtn();
 
   function stopSession(){
     sessionActive = false;
     stopTicker();
+    stopSpeaking();
     releaseWakeLock();
     viewPlayer.classList.remove("active");
     viewBuilder.classList.add("active");
@@ -1066,6 +1108,45 @@
   }
   function vibrate(pattern){
     if(navigator.vibrate){ try{ navigator.vibrate(pattern); }catch(e){} }
+  }
+
+  /* ---------------- text-to-speech (annonces vocales) ---------------- */
+  function speak(text){
+    if(!voiceOn || !ttsSupported || !text) return;
+    try{
+      window.speechSynthesis.cancel(); // coupe l'annonce précédente si on enchaîne vite
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "fr-FR";
+      u.rate = 1;
+      u.pitch = 1;
+      window.speechSynthesis.speak(u);
+    }catch(e){ /* pas fatal */ }
+  }
+  function stopSpeaking(){
+    if(ttsSupported){ try{ window.speechSynthesis.cancel(); }catch(e){} }
+  }
+  // nom du prochain exercice (première phase "work" strictement après l'index donné)
+  function nextExerciseName(fromIdx){
+    for(let i=fromIdx+1; i<queue.length; i++){
+      if(queue[i].type==="work") return queue[i].name;
+    }
+    return null;
+  }
+  // annonce vocale décrivant une étape (idx = son index dans la file)
+  function announcePhase(phase, idx){
+    if(!phase) return;
+    if(phase.type==="ready"){
+      speak("Préparez-vous");
+    } else if(phase.type==="work"){
+      const manual = phase.timed===false;
+      speak(phase.name + ", série " + phase.setIndex + " sur " + phase.totalSets
+        + (manual ? ", " + phase.reps + " répétitions" : ""));
+    } else if(phase.type==="rest"){
+      const nxt = nextExerciseName(idx);
+      speak(nxt && nxt !== phase.name ? "Pause, ensuite " + nxt : "Pause");
+    } else if(phase.type==="done"){
+      speak("Séance terminée. Bravo !");
+    }
   }
 
   /* ---------------- notifications ---------------- */
